@@ -17,34 +17,13 @@ tab1, tab2, tab3 = st.tabs(["Sebaran Customer dan Seller", "Sebaran Price dan Fr
 # Tab pertanyaan 1
 with tab1:
 
+    ### Bagian peta brazil 
     df1 = pd.read_csv("dashboard/geoloc_customer.csv")
     df2 = pd.read_csv("dashboard/geoloc_seller.csv")
 
-    # Ubah df1 dan df2 ke geodataframe
-    geometry1 = [Point(xy) for xy in zip(df1["geolocation_lng"], df1["geolocation_lat"])]
-    gdf1 = gpd.GeoDataFrame(df1, geometry=geometry1, crs="EPSG:4674")
-    geometry2 = [Point(xy) for xy in zip(df2["geolocation_lng"], df2["geolocation_lat"])]
-    gdf2 = gpd.GeoDataFrame(df2, geometry=geometry2, crs="EPSG:4674")
-
-    # Load peta negara brazil
-    brazil_states = read_state(year=2018).to_crs("EPSG:4674")
-    gdf = gdf1.clip(brazil_states)
-
-    # Gabungkan customer dan seller count
-    customer_count = df1["geolocation_state"].value_counts().reset_index()
-    customer_count.columns = ["abbrev_state", "customer_count"]
-
-    seller_count = df2["seller_state"].value_counts().reset_index()
-    seller_count.columns = ["abbrev_state", "seller_count"]
-
-    # Merge customer dan seller dengan kode kota
-    brazil_states = brazil_states.merge(customer_count, on="abbrev_state", how="left")
-    brazil_states = brazil_states.merge(seller_count, on="abbrev_state", how="left")
-    brazil_states["total_count"] = brazil_states["customer_count"] + brazil_states["seller_count"].fillna(0)
-
     # Fungsi untuk membuat peta choropleth
     def plot_choropleth(ax, gdf, column, title, cmap):
-        brazil_states.plot(ax=ax, color="lightgrey", edgecolor="grey")
+        brazil_state.plot(ax=ax, color="lightgrey", edgecolor="grey")
         gdf.plot(column=column, 
                  cmap=cmap, 
                  linewidth=0.8, 
@@ -55,16 +34,38 @@ with tab1:
         ax.set_title(title, fontsize=12)
         ax.set_axis_off()
 
+    # Ubah df1 dan df2 ke geodataframe
+    geometry1 = [Point(xy) for xy in zip(df1["geolocation_lng"], df1["geolocation_lat"])]
+    gdf1 = gpd.GeoDataFrame(df1, geometry=geometry1, crs="EPSG:4674")
+    geometry2 = [Point(xy) for xy in zip(df2["geolocation_lng"], df2["geolocation_lat"])]
+    gdf2 = gpd.GeoDataFrame(df2, geometry=geometry2, crs="EPSG:4674")
+
+    # Load peta negara brazil
+    brazil_state = read_state(year=2018).to_crs("EPSG:4674")
+    gdf = gdf1.clip(brazil_state)
+
+    # Gabungkan customer dan seller count
+    customer_count = df1["geolocation_state"].value_counts().reset_index()
+    customer_count.columns = ["abbrev_state", "customer_count"]
+
+    seller_count = df2["seller_state"].value_counts().reset_index()
+    seller_count.columns = ["abbrev_state", "seller_count"]
+
+    # Merge customer dan seller dengan kode kota
+    brazil_state = brazil_state.merge(customer_count, on="abbrev_state", how="left")
+    brazil_state = brazil_state.merge(seller_count, on="abbrev_state", how="left")
+    brazil_state["total_count"] = brazil_state["customer_count"] + brazil_state["seller_count"].fillna(0)
+
     # Gambar 1
     st.subheader("Peta Sebaran Customer dan Seller")
     fig, axes = plt.subplots(1, 3, figsize=(12, 10))
-    plot_choropleth(axes[0], brazil_states, "total_count", "Sebaran Customers dan Sellers", "Purples")
-    plot_choropleth(axes[1], brazil_states, "customer_count", "Sebaran Customers", "Reds")
-    plot_choropleth(axes[2], brazil_states, "seller_count", "Sebaran Sellers", "Greens")
+    plot_choropleth(axes[0], brazil_state, "total_count", "Sebaran Customers dan Sellers", "Purples")
+    plot_choropleth(axes[1], brazil_state, "customer_count", "Sebaran Customers", "Reds")
+    plot_choropleth(axes[2], brazil_state, "seller_count", "Sebaran Sellers", "Greens")
     plt.tight_layout()
     st.pyplot(fig)
 
-    # Bagian wilayah kecil
+    ### Bagian wilayah kecil
     # Kode kota yang ingin ditampilkan
     code = ["SP", "RJ", "MG", "PR"]
 
@@ -83,7 +84,7 @@ with tab1:
         Line2D([0], [0], marker='o', color='w', markerfacecolor='green', markersize=8, label='Sellers')
     ]
 
-    # Iterasi untuk membuat plot setiap wilayah kecil
+    # Iterasi untuk membuat plot untuk setiap wilayah kecil
     for i, (state, ax) in enumerate(zip(code, axes.flatten())):
         ax.set_xlabel("Longitude")
         ax.set_ylabel("Latitude")
@@ -96,7 +97,7 @@ with tab1:
     plt.tight_layout()
     st.pyplot(fig)
 
-    # Bagian pie chart
+    ### Bagian pie chart
     def percent(pct, total):
         value = round(pct / 100 * total)
         return f"{pct:.1f}%\n({value})" if pct >= 4 else ""
@@ -149,26 +150,26 @@ with tab1:
 with tab2:
     df2 = pd.read_csv("dashboard/price.csv")
 
-    # Scatter Plot
+    ### Scatter Plot
     st.subheader("Scatter Plot: Freight Value dengan Price")
     fig, ax = plt.subplots()
     sns.scatterplot(data=df2, x="freight_value", y="price", ax=ax, marker="^")
     st.pyplot(fig)
 
-    # Heatmap korelasi
+    ### Heatmap korelasi
     st.subheader("Heatmap Korelasi")
     fig, ax = plt.subplots()
     sns.heatmap(df2.corr(), annot=True, cmap="rocket", ax=ax)
     st.pyplot(fig)
 
-    # Sebaran freight value
+    ### Sebaran freight value
     st.subheader("Sebaran Nilai Pengangkutan")
     fig, ax = plt.subplots()
     sns.histplot(df2["freight_value"], kde=True, color="blue", label="Freight Value", ax=ax)
     ax.set_xlim(0, 60)
     st.pyplot(fig)
 
-    # Sebaran price
+    ### Sebaran price
     st.subheader("Sebaran Harga")
     fig, ax = plt.subplots()
     sns.histplot(df2["price"], kde=True, color="red", label="Price", ax=ax)
@@ -177,6 +178,8 @@ with tab2:
 
 # Tab pertanyaan 3
 with tab3:
+
+    ### Bagian bar plot kategori
     df3 = pd.read_csv("dashboard/orders_date.csv")
 
     # Hitung value pada setiap kategori
@@ -218,6 +221,7 @@ with tab3:
 
     st.pyplot(fig)
 
+    ### Bagian bar plot sangat cepat
     # Analisis distribusi pengiriman lebih awal dari 3 hari
     early_delivery_count = df3[df3["delivery_accuracy"] < -3]["delivery_accuracy"].value_counts()
 
